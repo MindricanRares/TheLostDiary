@@ -1,41 +1,8 @@
 kontra.init();
+var SIZE = 32;
+var wall_list = [];
 
 kontra.assetPaths.images = "assets/images/";
-var key_message_displayed = false;
-var chest_message_displayed = false;
-var player_has_key = false;
-var player_found_pickaxe = false;
-var oranges_felled = false;
-var x_max = 228;
-var x_min = 12;
-var y_min = 5;
-var y_max = 161;
-var tree_x = 16;
-var tree_y = 225;
-var treasure_x;
-var treasure_y;
-var game_won = false;
-var player_found_key = false;
-
-function is_close(player, object_x, object_y) {
-  if (Math.abs(player.x - object_x < 8) && Math.abs(player.y - object_y < 8)) {
-    return true;
-  }
-  return false;
-}
-
-function get_tresure_position(boulders) {
-  var sum = 0;
-  var farthes_boulder;
-  boulders.forEach(function(boulder) {
-    if (boulder.x + boulder.y > sum) {
-      farthes_boulder = boulder;
-      sum = boulder.x + boulder.y;
-    }
-  });
-  treasure_x = Math.abs(farthes_boulder.x - tree_x);
-  treasure_y = Math.abs(farthes_boulder.y - tree_y);
-}
 
 kontra
   .loadAssets(
@@ -46,168 +13,251 @@ kontra
     "key.png",
     "orange.png"
   )
-  .then(function() {
-    var orange = kontra.sprite({
-        x: 40,
-        y: 219,
-        image: kontra.images.orange
-      });
-    var key = kontra.sprite({
-      x: 188,
-      y: 220,
-      image: kontra.images.key
-    });
-    var rocks = [
-      kontra.sprite({
-        x: Math.floor(Math.random() * (115 - 13 + 1) + 13),
-        y: Math.floor(Math.random() * (158 - 92 + 1) + 92),
-        image: kontra.images.boulder,
-        boulder_found: false,
-        height: 32,
-        width: 32
-      }),
-      kontra.sprite({
-        x: Math.floor(Math.random() * (220 -135  + 1) + 135),
-        y: Math.floor(Math.random() * (150 - 92 + 1) + 92),
-        image: kontra.images.boulder,
-        boulder_found: false,
-        height: 32,
-        width: 32
-      }),
-      kontra.sprite({
-        x: Math.floor(Math.random() * (227 - 120 + 1) + 120),
-        y: Math.floor(Math.random() * ( 71- 20 + 1) +20),
-        image: kontra.images.boulder,
-        boulder_found: false,
-        height: 32,
-        width: 32
-      })
-    ];
-
-    var pick_axe = kontra.sprite({
-      x: 220,
-      y: 220,
-      image: kontra.images.pickaxe
-    });
-
-    var background = kontra.sprite({
-      x: 0,
-      y: 0,
-      image: kontra.images.maize_background_small
-    });
-
+  .then(function () {
     var player = kontra.sprite({
-      x: 120,
-      y: 240,
-      image: kontra.images.player
+      x: 128,
+      y: 64,
+      color:'Blue',
+      height:16,
+      width:16
     });
-    get_tresure_position(rocks);
-    var loop = kontra.gameLoop({
-      update: function() {
+    var walls = [];
+
+    var fixed_walls = [];
+
+    // Fill the maze with walls
+    var maze = [];
+    for (var i = 0; i < SIZE; i++) {
+      maze[i] = [];
+      for (var j = 0; j < SIZE; j++) {
+        maze[i][j] = "#";
+      }
+    }
+    //Create an empty wall list
+
+    //Check if the given position is in the maze and not on the boundry
+    function in_maze(row, col) {
+      if (row > 0 && row < SIZE - 1 && col > 0 && col < SIZE - 1) {
+        return true;
+      }
+      return false;
+    }
+
+    //Add the neighbouring walls of the cell(row,col) to the wall list
+    function add_walls(row, col) {
+      //It`s a 4-connected grid maze
+      var dir = [
+        [0, 1],
+        [1, 0],
+        [0, -1],
+        [-1, 0]
+      ];
+      
+      for (var k = 0; k < dir.length; k++) {
+        //Calculate the neighbouring wall position and the cell position
+        var wall_row = row + dir[k][0];
+        var wall_col = col + dir[k][1];
+        var cell_row = wall_row + dir[k][0];
+        var cell_col = wall_col + dir[k][1];
+        
+        //Make sure the wall grid is in the range of the maze
         if (
-          player.x == treasure_x &&
-          player.y == treasure_y &&
-          game_won == false
+          in_maze(wall_row, wall_col) == false ||
+          in_maze(cell_row, cell_col) == false
         ) {
-          alert("you found it");
-          game_won = true;
+          continue;
         }
-        console.log(
-          "Player position: x=" +
-            player.x +
-            " y= " +
-            player.y +
-            "treasure is at " +
-            treasure_x +
-            " " +
-            treasure_y
-        );
-        if (kontra.keys.pressed("up")) {
-          player.y -= 1;
+
+        //Add the eall and the neghbouring cell to the list
+        wall_list.push([ [wall_row, wall_col],[cell_row,cell_col]]);
+        // console.warn(wall_list.length);
+      }
+    }
+
+    //Pick a random grid first
+    // var cell_row = Math.floor(Math.random() * (SIZE - 2 - 1 + 1) + 1);
+    // var cell_col = Math.floor(Math.random() * (SIZE - 2 - 1 + 1) + 1);
+    var cell_row = player.x / 16;
+    var cell_col = player.y / 16;
+    maze[cell_row][cell_col] = ".";
+    add_walls(cell_row, cell_col);
+
+    while (wall_list.length > 0) {
+      //Pick a random wall
+      var max=wall_list.length-1;
+      var min=0;
+      var id=Math.floor(Math.random() * (max - min + 1)) + min;
+      // var id = Math.floor(Math.random() * (wall_list.length) + 0);
+      // console.warn(id);
+      var wall_row = wall_list[id][0][0];
+      var wall_col = wall_list[id][0][1];
+      cell_row = wall_list[id][1][0];
+      cell_col = wall_list[id][1][1];
+      wall_list.splice(id,1);
+
+
+
+      //Skip if it is no longer a wall
+      if (maze[wall_row][wall_col] != "#") {
+        continue;
+      }
+      //Skip if the two cell that the wall divides are visited
+      if (maze[cell_row][cell_col] == ".") {
+        continue;
+      }
+
+      //Make the two grid as passages
+      maze[wall_row][wall_col] = ".";
+      maze[cell_row][cell_col] = ".";
+
+      //Add the neighbouring walls
+    console.table(maze);
+    
+      add_walls(cell_row, cell_col);
+    }
+
+    console.table(maze);
+    // maze.forEach(function(row){
+    //   row.forEach(function(elem){
+    //     console.log(elem);
+    //   });
+    //   console.log();
+    // });
+    var a_wall = kontra.sprite({
+      x: 16,
+      y: 16,
+      color: "black"
+    });
+    fixed_walls = [];
+    for (var row = 0; row < SIZE; row++) {
+      fixed_walls[row] = [];
+      for (var col = 0; col < SIZE; col++) {
+        if (maze[row][col] == "#") {
+          fixed_walls[row][col] = kontra.sprite({
+            x: row * 16,
+            y: col * 16,
+            color: "Black",
+            width: 16,
+            height: 16
+          });
+        } else {
+          console.warn("empty space");
         }
+      }
+    }
+
+    function check_for_intersection(current_wall) {
+      var colision = false;
+      walls.forEach(function (wall) {
+        if (current_wall.collidesWith(wall) && current_wall != wall) {
+          console.log(
+            "Intersection detected at: x= " + player.x + " y= " + player.y
+          );
+          colision = true;
+        }
+      });
+      return colision;
+    }
+
+    function check_for_colision() {
+      var colision = false;
+      walls.forEach(function (wall) {
+        if (player.collidesWith(wall)) {
+          console.log(
+            "Colision detected at: x= " + player.x + " y= " + player.y
+          );
+          colision = true;
+        }
+      });
+      fixed_walls.forEach(function (wall_row) {
+        wall_row.forEach(function (wall) {
+          if (player.collidesWith(wall)) {
+            console.log(
+              "Colision detected at: x= " + player.x + " y= " + player.y
+            );
+            colision = true;
+          }
+        });
+
+      });
+      return colision;
+    }
+
+    function randomize_walls() {
+      walls.forEach(function (wall) {
+        if (Math.random() > 0.5) {
+          var original_x = wall.x;
+          wall.x = Math.floor(Math.random() * (SIZE - 0) + 0) * SIZE;
+
+          if (check_for_colision() || check_for_intersection(wall)) {
+            wall.x = original_x;
+          }
+        } else {
+          var original_y = wall.y;
+          wall.y = Math.floor(Math.random() * (SIZE - 0) + 0) * SIZE;
+          var original_height = wall.height;
+          var original_width = wall.width;
+          wall.height = wall.width;
+          wall.width = original_height;
+          if (check_for_colision() || check_for_intersection(wall)) {
+            wall.y = original_y;
+            wall.height = original_height;
+            wall.width = original_width;
+          }
+          console.log("wall position  is at: x= " + wall.x + " y= " + wall.y);
+        }
+      });
+      setTimeout(randomize_walls, 1000);
+    }
+    randomize_walls();
+    var loop = kontra.gameLoop({
+      update: function () {
         if (kontra.keys.pressed("down")) {
           player.y += 1;
+          if (check_for_colision()) {
+            player.y -= 1;
+          }
         }
-        if (kontra.keys.pressed("left")) {
-          player.x -= 1;
+        if (kontra.keys.pressed("up")) {
+          player.y -= 1;
+          if (check_for_colision()) {
+            player.y += 1;
+          }
         }
         if (kontra.keys.pressed("right")) {
           player.x += 1;
-        }
-        if (kontra.keys.pressed("space")) {
-          if (
-            player_found_pickaxe &&
-            is_close(player, treasure_x, treasure_y)
-          ) {
-            alert("You won");
-            window.location = '';
-            
+          if (check_for_colision()) {
+            player.x -= 1;
           }
         }
-        background.update();
-        if (is_close(player, 16, 219) && key_message_displayed == false) {
-          alert("You look at the roots of the tree and there you find a key");
-          key_message_displayed = true;
-          player_has_key = true;
-          key.update();
-          player_found_key = true;
-        }
-        function idea() {
-          if (oranges_felled == false && is_close(player,16,225)) {
-            alert(
-              "ouch an orange fell on you head but thanks to it you rembered that you put 4 large rocks on the ground and that the treasure is at the crossing but the filed is so large you cant see anything well time to search for the rocks"
-            );
-            oranges_felled = true;
+        if (kontra.keys.pressed("left")) {
+          player.x -= 1;
+          if (check_for_colision()) {
+            player.x += 1;
           }
         }
-
-        if(oranges_felled==true){
-            orange.update();
-        }
-        if (is_close(player, 16, 225)) {
-          setTimeout(function() {
-            idea();
-          }, 3000);
-        }
-
-        if (
-          is_close(player, 213, 191) &&
-          chest_message_displayed == false &&
-          player_has_key == true
-        ) {
-          alert("You open the chest and find a shovel");
-          chest_message_displayed = true;
-          pick_axe.update();
-          player_found_pickaxe = true;
-        }
-
-        rocks.forEach(function(boulder) {
-          if (boulder.collidesWith(player) && boulder.boulder_found == false) {
-            alert("You found one of the rocks");
-            boulder.boulder_found = true;
-          }
-          if (boulder.boulder_found == true) {
-            boulder.update();
-          }
+        walls.forEach(function (wall) {
+          wall.update();
         });
+        fixed_walls.forEach(function (wall_row) {
+          wall_row.forEach(function (wall) {
+            wall.update();
+          });
+        });
+        player.update();
+        a_wall.update();
       },
-      render: function() {
-        background.render();
+      render: function () {
         player.render();
-        rocks.forEach(function(boulder) {
-          if (boulder.boulder_found == true) {
-            boulder.render();
-          }
+        walls.forEach(function (wall) {
+          wall.render();
         });
-        if (player_found_pickaxe == true) {
-          pick_axe.render();
-        }
-        if (player_found_key == true) {
-          key.render();
-        }
-        if(oranges_felled==true){
-            orange.render();
-        }
+        fixed_walls.forEach(function (wall_row) {
+          wall_row.forEach(function (wall) {
+            wall.render();
+          });
+        });
+        a_wall.render();
       }
     });
 
