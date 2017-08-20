@@ -1,18 +1,40 @@
 kontra.init();
 
+var levels=[
+  [
+    0,0,0,0,"Tutorial: Get to the goal(purple tile)"
+  ],
+  [
+    3,0,0,0,"Level 1: To unlock the goal you first have to get all the keys(green tiles)"
+  ],
+  [
+    3,10,10,0,"Level 2: The red spikes(red tiles) will kill you if you walk on them, also if you didn`t know pressing space shoots bulets which destroy crates(brown tiles)"
+  ],
+  [
+    3,20,20,1,"Level 3: It apears that one of the keys is booby traped and will shuflle the maze"
+  ],
+  [
+    3,30,30,2,"Level 4: Things just get more difficult"
+  ],
+  [
+    3,40,40,3,"Level 5: Final level"
+  ]
+];
+var current_level=0;
 
 var SIZE = 32;
 var wall_list = [];
-var number_of_keys = 3;
+var number_of_keys_needed;
 var number_of_keys_colected = 0;
 var last_movement_command = "up";
 var valid_locations = [];
 var current_maze = [];
-var fixed_walls = []
+var fixed_walls = [];
 var current_maze = [];
 var spike_traps = [];
 var wooden_crates = [];
 var goal_keys = [];
+var current_goal_location='';
 class Point {
   constructor(x, y) {
     this.x = x;
@@ -100,26 +122,26 @@ kontra.loadAssets().then(function () {
     width: 16,
   });
 
-  current_maze = create_maze(player_position);
-  valid_locations = get_valid_locations(current_maze);
-  var current_goal_location = get_random_valid_location(current_maze);
-  fixed_walls = [];
-  for (var row = 0; row < SIZE; row++) {
-    fixed_walls[row] = [];
-    for (var col = 0; col < SIZE; col++) {
-      if (current_maze[row][col] == "#") {
-        fixed_walls[row][col] = kontra.sprite({
-          x: row * 16,
-          y: col * 16,
-          color: "Black",
-          width: 16,
-          height: 16
-        });
-      } else {
-        console.warn("empty space");
-      }
-    }
-  }
+  // current_maze = create_maze(player_position);
+  // valid_locations = get_valid_locations(current_maze);
+  // current_goal_location = get_random_valid_location(current_maze);
+  // fixed_walls = [];
+  // for (var row = 0; row < SIZE; row++) {
+  //   fixed_walls[row] = [];
+  //   for (var col = 0; col < SIZE; col++) {
+  //     if (current_maze[row][col] == "#") {
+  //       fixed_walls[row][col] = kontra.sprite({
+  //         x: row * 16,
+  //         y: col * 16,
+  //         color: "Black",
+  //         width: 16,
+  //         height: 16
+  //       });
+  //     } else {
+  //       console.warn("empty space");
+  //     }
+  //   }
+  // }
 
   function get_valid_locations(maze) {
     var valid_location = [];
@@ -130,6 +152,14 @@ kontra.loadAssets().then(function () {
         }
       }
     }
+    var player_spot;
+    for (var index = 0; index < valid_location.length; index++) {
+      var element = valid_location[index];
+      if(element.x==player.x &&element.y==player.y){
+        player_spot=index;
+      }
+    }
+    valid_location.splice(player_spot,1);
     return valid_location;
   }
 
@@ -161,11 +191,19 @@ kontra.loadAssets().then(function () {
           player[direction[axe]] -= direction[value_moved];
         }
         if (check_if_goal()) {
-          alert("You have won");
-          window.location = "";
+          alert("Level passed");
+          // window.location='';
+          current_level+=1;
+          level_init();
         }
         if (check_if_key()) {
+          
           number_of_keys_colected += 1;
+            if(levels[current_level][3]!=0){
+              levels[current_level][3]-=1;
+              shuffle_maze(levels[current_level][0]-number_of_keys_colected,levels[current_level][1],levels[current_level][2]);
+            }
+          
         }
         if (check_if_spike()) {
           alert("You died");
@@ -185,7 +223,7 @@ kontra.loadAssets().then(function () {
       wall_row.forEach(function (wall) {
         if (player.collidesWith(wall)) {
           console.log(
-            "Colision detected at: x= " + player.x + " y= " + player.y
+            // "Colision detected at: x= " + player.x + " y= " + player.y
           );
           colision = true;
         }
@@ -195,12 +233,18 @@ kontra.loadAssets().then(function () {
   }
 
   function check_if_goal() {
+    console.warn("Number of keys needed"+number_of_keys_needed);
+    console.warn("Number of keys collected"+number_of_keys_colected   );
+    console.warn(current_level);
     var goal_found = false;
     if (
       player.collidesWith(goal) &&
-      number_of_keys_colected == number_of_keys
+      number_of_keys_colected == number_of_keys_needed
     ) {
       goal_found = true;
+      
+      player.x = goal.x;
+      player.y = goal.y;
     }
     return goal_found;
   }
@@ -226,7 +270,6 @@ kontra.loadAssets().then(function () {
 
         player.x = key.x;
         player.y = key.y;
-        shuffle_maze(2-number_of_keys_colected,20,20);
       }
     });
     return key_found;
@@ -281,7 +324,7 @@ kontra.loadAssets().then(function () {
   function change_state_traps() {
     spike_traps.forEach(function (trap) {
       if (trap.dangerous == true) {
-        console.warn("trap changed from true to false");
+        // console.warn("trap changed from true to false");
         trap.dangerous = false;
         trap.color = "pink";
       } else {
@@ -300,15 +343,15 @@ kontra.loadAssets().then(function () {
       ["left", "dx", -2]
     ];
     if (kontra.keys.pressed("space") && bullet.destroyed == true) {
-      console.warn("Player pressed space");
-      console.warn("Last direction moved " + last_movement_command);
+      // console.warn("Player pressed space");
+      // console.warn("Last direction moved " + last_movement_command);
       bullet.x = player.x + 8;
       bullet.y = player.y + 8;
       bullet.color = "teal";
       bullet.width = 4;
       bullet.height = 4;
       bullet_directions.forEach(function (direction) {
-        console.warn(direction);
+        // console.warn(direction);
         if (last_movement_command == direction[0]) {
           bullet[direction[1]] = direction[2];
         }
@@ -367,12 +410,19 @@ kontra.loadAssets().then(function () {
   }
 
   function shuffle_maze(goal_keys_number,wooden_crates_number,spike_traps_number) {
+    if (current_level==0) {
+       // console.warn(current_level);
     player_position.x = player.x;
     player_position.y = player.y;
-    if (kontra.keys.pressed("up") || kontra.keys.pressed("down") || kontra.keys.pressed("right") || kontra.keys.pressed("left")) {
+    number_of_keys_needed=0;
+    // if (kontra.keys.pressed("up") || kontra.keys.pressed("down") || kontra.keys.pressed("right") || kontra.keys.pressed("left")) {
       current_maze = create_maze(player_position);
       valid_locations = get_valid_locations(current_maze);
-      var current_goal_location = get_random_valid_location(current_maze);
+      current_goal_location = get_random_valid_location(current_maze);
+      if(current_level==0){
+        number_of_keys_colected=3;
+      }
+      // console.warn(current_goal_location);
       fixed_walls = [];
       for (var row = 0; row < SIZE; row++) {
         fixed_walls[row] = [];
@@ -386,9 +436,56 @@ kontra.loadAssets().then(function () {
               height: 16
             });
           } else {
-            console.warn("empty space");
+            // console.warn("empty space");
+          // }
+        }
+        // console.table(fixed_walls);
+      }
+      wooden_crates = generate_crates(wooden_crates_number);
+      goal_keys = generate_keys(goal_keys_number);
+      spike_traps=[];
+      spike_traps = generate_spikes(spike_traps_number);
+      // change_state_traps();
+      var bullet = kontra.sprite({
+        destroyed: true
+      });
+      var goal = kontra.sprite({
+        x: current_goal_location.x * 16,
+        y: current_goal_location.y * 16,
+        color: "purple",
+        height: 16,
+        width: 16
+      });
+    }
+    } else {
+      
+    }
+    // console.warn(current_level);
+    player_position.x = player.x;
+    player_position.y = player.y;
+    number_of_keys_needed=3;
+    if (kontra.keys.pressed("up") || kontra.keys.pressed("down") || kontra.keys.pressed("right") || kontra.keys.pressed("left")) {
+      current_maze = create_maze(player_position);
+      valid_locations = get_valid_locations(current_maze);
+      current_goal_location = get_random_valid_location(current_maze);
+      // console.warn(current_goal_location);
+      fixed_walls = [];
+      for (var row = 0; row < SIZE; row++) {
+        fixed_walls[row] = [];
+        for (var col = 0; col < SIZE; col++) {
+          if (current_maze[row][col] == "#") {
+            fixed_walls[row][col] = kontra.sprite({
+              x: row * 16,
+              y: col * 16,
+              color: "Black",
+              width: 16,
+              height: 16
+            });
+          } else {
+            // console.warn("empty space");
           }
         }
+        // console.table(fixed_walls);
       }
       wooden_crates = generate_crates(wooden_crates_number);
       goal_keys = generate_keys(goal_keys_number);
@@ -408,10 +505,16 @@ kontra.loadAssets().then(function () {
     }
   }
 
+  function level_init() {
+    alert(levels[current_level][4]);
+    number_of_keys_colected=0;
+    shuffle_maze(levels[current_level][0],levels[current_level][1],levels[current_level][2]);
+  }
 
-  wooden_crates = generate_crates(30);
-  goal_keys = generate_keys(3);
-  spike_traps = generate_spikes(20);
+  // wooden_crates = generate_crates(30);
+  // goal_keys = generate_keys(3);
+  // spike_traps = generate_spikes(20);
+  level_init();
   change_state_traps();
   var bullet = kontra.sprite({
     destroyed: true
